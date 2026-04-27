@@ -1,45 +1,37 @@
 package com.jsp.AutomationEngine.controller;
 
+import com.jsp.AutomationEngine.context.WorkFlowTransactionContext;
+import com.jsp.AutomationEngine.dto.AppResponseDTO;
+import com.jsp.AutomationEngine.dto.UpdateStatusDTO;
 import com.jsp.AutomationEngine.dto.WorkFlowDTO;
 import com.jsp.AutomationEngine.entity.WorkFlowModel;
+import com.jsp.AutomationEngine.entity.WorkFlowTransaction;
+import com.jsp.AutomationEngine.service.TransactionService;
 import com.jsp.AutomationEngine.service.WorkFlowService;
+import com.jsp.AutomationEngine.service.WorkFlowServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/workflow")
 public class WorkFlowController {
 
-    private static final Logger LOGGER =
-            LoggerFactory.getLogger(WorkFlowController.class);
-
+    public static final Logger LOGGER = LoggerFactory.getLogger(WorkFlowController.class);
     @Autowired
-    private WorkFlowService workFlowService;
+    WorkFlowServiceImpl service;
 
-    @PostMapping("/save")
-    public WorkFlowModel save(@RequestBody WorkFlowDTO dto) {
+    @PostMapping(value = "/saveUpload")
+    public AppResponseDTO saveUpload(@RequestBody List<WorkFlowDTO> dto) {
 
-        LOGGER.info("Received request to save workflow");
-        LOGGER.debug("DTO Data: {}", dto);
-
-        WorkFlowModel response = workFlowService.saveWorkFlow(dto);
-
-        LOGGER.info("Workflow saved successfully with ID: {}", response.getAltKey());
-
-        return response;
+        return service.processSaveUpload(dto);
     }
-    @PostMapping("/create")
-    public WorkFlowModel create(@RequestBody WorkFlowDTO dto) {
+    @PostMapping(value = "/updateStatus")
+    public AppResponseDTO updateStatus(@RequestBody UpdateStatusDTO dto){
 
-        LOGGER.info("Creating workflow...");
-
-        return workFlowService.CreateWorkFlow(dto);
-    }
-
-    @PostMapping("/activate")
-    public WorkFlowModel activate(@RequestBody WorkFlowDTO dto) {
-        return workFlowService.activateWorkFlow(dto);
+        return service.processUpdateStatus(dto);
     }
 }

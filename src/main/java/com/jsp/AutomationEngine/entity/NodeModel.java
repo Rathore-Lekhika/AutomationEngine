@@ -25,13 +25,13 @@ public class NodeModel extends WorkFlowData {
     @Column(name = "alt_key")
     private BigInteger altKey=generateAltKey();
     @Column(name = "workflow_id")
-    private String workflowID;
+    private String workFlowId;
     @Column(name = "tenant_id")
-    private String tenantID;
+    private String tenantId;
     @Column(name = "node_type")
     private String nodeType;
     @Column(name = "node_id")
-    private String node_ID;
+    private String nodeId;
 
     @Convert(converter = ListToJsonConverter.class)
     @Column(name = "outgoing_nodes", columnDefinition = "TEXT")
@@ -43,6 +43,7 @@ public class NodeModel extends WorkFlowData {
     @Convert(converter = MapToJsonConverter.class)
     @Column(name = "node_properties", columnDefinition = "TEXT")
     private Map<String, String> nodeProperties;
+
 
     public BigInteger generateAltKey() {
         return new BigInteger(ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE) + "");

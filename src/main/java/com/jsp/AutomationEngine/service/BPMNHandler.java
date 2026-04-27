@@ -1,24 +1,30 @@
 package com.jsp.AutomationEngine.service;
 
 
+
+
+
 import com.jsp.AutomationEngine.entity.NodeModel;
-
-
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.DefaultHandler;
 
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class BPMNHandler extends DefaultHandler {
+
     private List<NodeModel> nodes = new ArrayList<>();
     private Map<String, NodeModel> nodeMap = new HashMap<>();
+    private List<String[]> sequenceFlows = new ArrayList<>();
 
     private NodeModel currentNode;
-    private String currentElement;
+
+    private String workflowCode;
+    private String tenantId;
+
+    public BPMNHandler(String workflowCode, String tenantId) {
+        this.workflowCode = workflowCode;
+        this.tenantId = tenantId;
+    }
 
     public List<NodeModel> getNodes() {
         return nodes;
@@ -29,14 +35,22 @@ public class BPMNHandler extends DefaultHandler {
 
         switch (qName) {
 
+            // ✅ ALL NODE TYPES
             case "bpmn:startEvent":
             case "bpmn:endEvent":
             case "bpmn:task":
+            case "bpmn:exclusiveGateway":
+            case "bpmn:parallelGateway":
+            case "bpmn:inclusiveGateway":
 
                 currentNode = new NodeModel();
-                currentNode.setAltKey(BigInteger.valueOf(System.nanoTime()));
-                currentNode.setNode_ID(attributes.getValue("id"));
+
+                currentNode.setWorkFlowId(workflowCode);
+                currentNode.setTenantId(tenantId);
+
+                currentNode.setNodeId(attributes.getValue("id"));
                 currentNode.setNodeType(qName.replace("bpmn:", "").toUpperCase());
+
                 currentNode.setNodeProperties(new HashMap<>());
                 currentNode.setIncomingNodes(new ArrayList<>());
                 currentNode.setOutgoingNodes(new ArrayList<>());
@@ -47,44 +61,15 @@ public class BPMNHandler extends DefaultHandler {
 
                 break;
 
+            // ✅ SEQUENCE FLOW
             case "bpmn:sequenceFlow":
 
-                String source = attributes.getValue("sourceRef");
-                String target = attributes.getValue("targetRef");
-
-                NodeModel sourceNode = nodeMap.get(source);
-                NodeModel targetNode = nodeMap.get(target);
-
-                if (sourceNode != null) {
-                    sourceNode.getOutgoingNodes().add(target);
-                }
-
-                if (targetNode != null) {
-                    targetNode.getIncomingNodes().add(source);
-                }
+                sequenceFlows.add(new String[]{
+                        attributes.getValue("sourceRef"),
+                        attributes.getValue("targetRef")
+                });
 
                 break;
-
-            case "bpmn:incoming":
-            case "bpmn:outgoing":
-                currentElement = qName;
-                break;
-        }
-    }
-
-    @Override
-    public void characters(char[] ch, int start, int length) {
-        if (currentNode == null || currentElement == null) return;
-
-        String value = new String(ch, start, length).trim();
-        if (value.isEmpty()) return;
-
-        if (currentElement.equals("bpmn:incoming")) {
-            currentNode.getIncomingNodes().add(value);
-        }
-
-        if (currentElement.equals("bpmn:outgoing")) {
-            currentNode.getOutgoingNodes().add(value);
         }
     }
 
@@ -93,32 +78,68 @@ public class BPMNHandler extends DefaultHandler {
 
         if (qName.equals("bpmn:startEvent") ||
                 qName.equals("bpmn:endEvent") ||
-                qName.equals("bpmn:task")) {
-
-            // ✅ Build JSON properties here
-            Map<String, String> props = new HashMap<>();
-
-            props.put("name", currentNode.getNodeProperties().get("name"));
-            props.put("type", currentNode.getNodeType());
-
-            // Convert list → comma separated string
-            props.put("incoming", String.join(",", currentNode.getIncomingNodes()));
-            props.put("outgoing", String.join(",", currentNode.getOutgoingNodes()));
-
-            // Example custom property
-            if ("TASK".equals(currentNode.getNodeType())) {
-                props.put("actionType", "SEND_EMAIL");
-            }
-
-            // ✅ Set final JSON map
-            currentNode.setNodeProperties(props);
+                qName.equals("bpmn:task") ||
+                qName.equals("bpmn:exclusiveGateway") ||
+                qName.equals("bpmn:parallelGateway") ||
+                qName.equals("bpmn:inclusiveGateway")) {
 
             nodes.add(currentNode);
-            nodeMap.put(currentNode.getNode_ID(), currentNode);
-
+            nodeMap.put(currentNode.getNodeId(), currentNode);
             currentNode = null;
         }
+    }
 
-        currentElement = null;
+    @Override
+    public void endDocument() {
+
+        // ✅ STEP 1: CONNECT NODES USING FLOWS
+        for (String[] flow : sequenceFlows) {
+
+            String source = flow[0];
+            String target = flow[1];
+
+            NodeModel sourceNode = nodeMap.get(source);
+            NodeModel targetNode = nodeMap.get(target);
+
+            if (sourceNode != null) {
+                sourceNode.getOutgoingNodes().add(target);
+            }
+
+            if (targetNode != null) {
+                targetNode.getIncomingNodes().add(source);
+            }
+        }
+
+        // ✅ STEP 2: BUILD FINAL PROPERTIES
+        for (NodeModel node : nodes) {
+
+            Map<String, String> props = new HashMap<>();
+
+            props.put("name", node.getNodeProperties().getOrDefault("name", ""));
+            props.put("type", node.getNodeType());
+
+            props.put("incoming", String.join(",", node.getIncomingNodes()));
+            props.put("outgoing", String.join(",", node.getOutgoingNodes()));
+
+            // ✅ CUSTOM LOGIC
+            if ("TASK".equals(node.getNodeType())) {
+                props.put("actionType", "SEND_SMS");
+            }
+
+            if ("EXCLUSIVEGATEWAY".equals(node.getNodeType())) {
+                props.put("gatewayType", "DECISION");
+            }
+
+            if ("STARTEVENT".equals(node.getNodeType())) {
+                props.put("isStart", "true");
+            }
+
+            if ("ENDEVENT".equals(node.getNodeType())) {
+                props.put("isEnd", "true");
+            }
+
+            node.setNodeProperties(props);
+        }
     }
 }
+
