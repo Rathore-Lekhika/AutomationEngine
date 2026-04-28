@@ -1,9 +1,6 @@
 package com.jsp.AutomationEngine.service;
 
 
-
-
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.AttributeConverter;
@@ -28,7 +25,8 @@ public class ListToJsonConverter implements AttributeConverter<List<String>, Str
     @Override
     public List<String> convertToEntityAttribute(String dbData) {
         try {
-            return objectMapper.readValue(dbData, new TypeReference<List<String>>() {});
+            return objectMapper.readValue(dbData, new TypeReference<List<String>>() {
+            });
         } catch (Exception e) {
             throw new RuntimeException("Error converting JSON to list", e);
         }

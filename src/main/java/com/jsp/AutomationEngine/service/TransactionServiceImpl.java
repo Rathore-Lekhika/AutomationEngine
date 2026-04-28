@@ -26,7 +26,6 @@ public class TransactionServiceImpl implements TransactionService {
     @Autowired
     private TransactionLogRepository transactionLogRepository;
 
-    // Node mapping (Strategy Pattern)
     private static final Map<String, Supplier<NodeExecutionService>> nodeMap = new HashMap<>();
 
     static {
@@ -44,6 +43,7 @@ public class TransactionServiceImpl implements TransactionService {
             throw e;
         }
     }
+
     public void execute(WorkFlowTransactionContext context) {
 
         WorkFlowModel workFlowModel = context.getWorkFlowModel();
